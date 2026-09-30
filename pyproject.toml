@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mdconv"
+version = "0.1.0"
+description = "Convert documents (PDF, HTML, DOCX, ...) to Markdown — a thin wrapper around microsoft/markitdown."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "markitdown[all]>=0.1.8",
+    "flask>=3.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+mdconv = "mdconv.cli:main"
+mdconv-web = "mdconv.server:main"
+
+[tool.setuptools]
+packages = ["mdconv"]
+
+[tool.setuptools.package-data]
+mdconv = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

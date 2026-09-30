@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MD Converter — upload a document, get Markdown</title>
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --panel: #ffffff;
+    --ink: #16202c;
+    --muted: #64748b;
+    --line: #e2e8f0;
+    --accent: #2563eb;
+    --accent-ink: #ffffff;
+    --ok: #16a34a;
+    --bad: #dc2626;
+    --bad-bg: #fef2f2;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans);
+    font-size: 15px; line-height: 1.5;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 18px 28px; background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+    background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff;
+    font-weight: 800; letter-spacing: .5px;
+  }
+  header h1 { margin: 0; font-size: 19px; }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  .engine-badge {
+    font-size: 12px; color: var(--muted); border: 1px solid var(--line);
+    padding: 5px 10px; border-radius: 999px; background: #f8fafc;
+  }
+
+  .layout {
+    display: grid; grid-template-columns: minmax(320px, 400px) 1fr; gap: 20px;
+    padding: 22px 28px; max-width: 1440px; margin: 0 auto; align-items: start;
+  }
+  @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px; box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  }
+  .panel h2 {
+    margin: 0 0 14px; font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---- input side ---- */
+  #dropzone {
+    border: 2px dashed #cbd5e1; border-radius: 12px; padding: 26px 16px; text-align: center;
+    cursor: pointer; transition: border-color .15s, background .15s; background: #fbfdff;
+  }
+  #dropzone:hover, #dropzone:focus-visible { border-color: var(--accent); outline: none; }
+  #dropzone.drag { border-color: var(--accent); background: #eff6ff; }
+  #dropzone .arrow { font-size: 26px; }
+  #dropzone p { margin: 6px 0 0; }
+  #dropzone .hint { color: var(--muted); font-size: 12.5px; margin-top: 8px; }
+
+  .url-row { display: flex; gap: 8px; margin-top: 14px; }
+  .url-row input {
+    flex: 1; min-width: 0; padding: 9px 11px; border: 1px solid var(--line);
+    border-radius: 9px; font: inherit; font-size: 13.5px;
+  }
+  .url-row input:focus { border-color: var(--accent); outline: none; }
+
+  .file-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 7px; }
+  .file-list:empty { margin-top: 0; }
+  .file-list li {
+    display: flex; align-items: center; gap: 9px; padding: 8px 10px;
+    border: 1px solid var(--line); border-radius: 9px; background: #f8fafc; font-size: 13.5px;
+  }
+  .file-list .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-list .fsize { color: var(--muted); font-size: 12px; }
+  .file-list .kind {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--accent); background: #eff6ff; padding: 2px 6px; border-radius: 5px;
+  }
+  .rm {
+    border: 0; background: transparent; color: var(--muted); cursor: pointer;
+    font-size: 16px; line-height: 1; padding: 2px 4px; border-radius: 5px;
+  }
+  .rm:hover { color: var(--bad); background: #fee2e2; }
+
+  .actions { display: flex; gap: 9px; margin-top: 16px; }
+  button { font: inherit; cursor: pointer; border-radius: 9px; border: 1px solid var(--line); background: #fff; color: var(--ink); padding: 9px 14px; font-size: 14px; }
+  button:hover:not(:disabled) { border-color: #cbd5e1; background: #f8fafc; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: #1d4ed8; border-color: #1d4ed8; }
+  #convertBtn { flex: 1; }
+  .status { margin: 12px 0 0; font-size: 13px; color: var(--muted); min-height: 18px; }
+  .status.err { color: var(--bad); }
+  .status.ok { color: var(--ok); }
+
+  .spin {
+    display: inline-block; width: 13px; height: 13px; margin-right: 7px;
+    border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%;
+    animation: spin .7s linear infinite; vertical-align: -2px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- output side ---- */
+  .empty {
+    border: 1px dashed var(--line); border-radius: 12px; padding: 46px 20px;
+    text-align: center; color: var(--muted); background: #fbfdff;
+  }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .tabs button {
+    padding: 6px 11px; font-size: 13px; max-width: 240px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tabs button.active { border-color: var(--accent); color: var(--accent); background: #eff6ff; font-weight: 600; }
+  .tabs button.failed { color: var(--bad); }
+  .tabs button.failed.active { background: var(--bad-bg); border-color: var(--bad); }
+
+  .toolbar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding-bottom: 10px; border-bottom: 1px solid var(--line); margin-bottom: 12px;
+  }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 6px 12px; font-size: 13px; background: #f8fafc; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .toolbar .spacer { flex: 1; }
+  .meta { color: var(--muted); font-size: 12.5px; }
+  .toolbar button { padding: 6px 12px; font-size: 13px; }
+
+  .raw {
+    margin: 0; padding: 16px; background: #0f172a; color: #e2e8f0; border-radius: 11px;
+    font-family: var(--mono); font-size: 13px; line-height: 1.6; overflow: auto;
+    max-height: min(70vh, 760px); white-space: pre-wrap; word-break: break-word;
+  }
+  .preview { max-height: min(70vh, 760px); overflow: auto; padding: 4px 6px; }
+  .preview > :first-child { margin-top: 0; }
+  .preview h1, .preview h2, .preview h3 { line-height: 1.25; margin: 1.1em 0 .45em; }
+  .preview h1 { font-size: 1.7em; border-bottom: 1px solid var(--line); padding-bottom: .2em; }
+  .preview h2 { font-size: 1.4em; }
+  .preview h3 { font-size: 1.15em; }
+  .preview code {
+    font-family: var(--mono); font-size: .9em; background: #f1f5f9;
+    padding: 2px 5px; border-radius: 5px;
+  }
+  .preview pre {
+    background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 10px;
+    overflow: auto; font-family: var(--mono); font-size: 13px;
+  }
+  .preview pre code { background: none; padding: 0; color: inherit; }
+  .preview blockquote {
+    margin: 0; padding: 2px 14px; border-left: 3px solid var(--accent);
+    color: var(--muted); background: #f8fafc;
+  }
+  .preview table { border-collapse: collapse; margin: 1em 0; font-size: .95em; }
+  .preview th, .preview td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; }
+  .preview th { background: #f8fafc; }
+  .preview img { max-width: 100%; }
+  .preview hr { border: 0; border-top: 1px solid var(--line); margin: 1.6em 0; }
+  .imgph {
+    display: inline-block; background: #f1f5f9; border: 1px dashed #cbd5e1;
+    padding: 1px 7px; border-radius: 6px; font-size: .85em; color: var(--muted);
+  }
+
+  .error-card {
+    background: var(--bad-bg); border: 1px solid #fecaca; color: #991b1b;
+    padding: 14px 16px; border-radius: 11px; font-size: 14px;
+  }
+  .error-card strong { display: block; margin-bottom: 4px; }
+  .warn {
+    background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+    padding: 9px 13px; border-radius: 9px; font-size: 13.5px; margin-bottom: 12px;
+  }
+  footer {
+    text-align: center; color: var(--muted); font-size: 12.5px; padding: 8px 0 26px;
+  }
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+    background: #0f172a; color: #fff; padding: 9px 16px; border-radius: 999px;
+    font-size: 13.5px; opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="logo">MD</span>
+    <div>
+      <h1>MD Converter</h1>
+      <p>Upload a document — get clean Markdown back.</p>
+    </div>
+  </div>
+  <span class="engine-badge">engine: microsoft/markitdown</span>
+</header>
+
+<main class="layout">
+  <!-- ============ 1. input ============ -->
+  <section class="panel">
+    <h2>1 · Choose documents</h2>
+
+    <div id="dropzone" tabindex="0" role="button" aria-label="Choose files to convert">
+      <div class="arrow">⬆</div>
+      <p><strong>Drop files here</strong> or click to browse</p>
+      <p class="hint">PDF · HTML · DOCX · PPTX · XLSX · CSV · TXT · MD · images · and more</p>
+      <input type="file" id="fileInput" multiple hidden
+             accept=".pdf,.html,.htm,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.tsv,.txt,.md,.rtf,.odt,.odp,.ods,.epub,.xml,.json,.log,.png,.jpg,.jpeg,.gif,.webp">
+    </div>
+
+    <form id="urlForm" class="url-row">
+      <input type="url" id="urlInput" placeholder="or paste a URL: https://example.com/article" aria-label="Document URL">
+      <button type="submit">Add</button>
+    </form>
+
+    <ul id="fileList" class="file-list"></ul>
+
+    <div class="actions">
+      <button id="convertBtn" class="primary" disabled>Convert to Markdown</button>
+      <button id="clearBtn" type="button" hidden>Clear</button>
+    </div>
+    <p id="status" class="status" role="status"></p>
+  </section>
+
+  <!-- ============ 2. output ============ -->
+  <section class="panel">
+    <h2>2 · Markdown output</h2>
+
+    <div id="empty" class="empty">Converted Markdown will appear here.</div>
+
+    <div id="results" hidden>
+      <nav id="tabs" class="tabs" aria-label="Converted documents"></nav>
+
+      <div class="toolbar">
+        <div class="seg">
+          <button type="button" data-view="raw" class="on">Markdown</button>
+          <button type="button" data-view="preview">Preview</button>
+        </div>
+        <div class="spacer"></div>
+        <span id="meta" class="meta"></span>
+        <button type="button" id="copyBtn">Copy</button>
+        <button type="button" id="downloadBtn" class="primary">Download .md</button>
+      </div>
+
+      <div id="warnBox"></div>
+      <div id="errorBox"></div>
+      <pre id="rawView" class="raw"></pre>
+      <article id="previewView" class="preview" hidden></article>
+    </div>
+  </section>
+</main>
+
+<footer>Runs locally — your documents never leave this machine. Conversion is done by <code>markitdown</code>.</footer>
+<div id="toast" class="toast" role="status"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ---------------------------------------------------------- state */
+  /** @type {{kind:'file'|'url', file?:File, url?:string, label:string}[]} */
+  let queue = [];
+  /** @type {{name:string, ok:boolean, markdown?:string, error?:string, chars?:number, ms?:number, empty?:boolean}[]} */
+  let results = [];
+  let active = 0;
+  let view = "raw";
+  let busy = false;
+
+  const $ = (id) => document.getElementById(id);
+  const dropzone = $("dropzone"), fileInput = $("fileInput"), urlForm = $("urlForm"),
+        urlInput = $("urlInput"), fileList = $("fileList"), convertBtn = $("convertBtn"),
+        clearBtn = $("clearBtn"), statusEl = $("status"), emptyEl = $("empty"),
+        resultsEl = $("results"), tabsEl = $("tabs"), metaEl = $("meta"),
+        rawView = $("rawView"), previewView = $("previewView"), warnBox = $("warnBox"),
+        errorBox = $("errorBox"), toastEl = $("toast");
+
+  const fmtSize = (n) => n < 1024 ? n + " B"
+    : n < 1048576 ? (n / 1024).toFixed(1) + " KB"
+    : (n / 1048576).toFixed(1) + " MB";
+
+  const ext = (name) => (name.split(".").pop() || "").toLowerCase();
+  const mdName = (label) => label.replace(/\.[^.]+$/, "") + ".md";
+
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toastEl.classList.remove("show"), 2200);
+  }
+
+  function setStatus(msg, kind) {
+    statusEl.textContent = msg || "";
+    statusEl.className = "status" + (kind ? " " + kind : "");
+  }
+
+  /* ------------------------------------------------------- queueing */
+  function addFiles(fileListLike) {
+    const incoming = Array.from(fileListLike || []);
+    if (!incoming.length) return;
+    for (const file of incoming) {
+      const key = "f:" + file.name + ":" + file.size + ":" + file.lastModified;
+      if (queue.some((e) => e.key === key)) continue;
+      queue.push({ kind: "file", file, label: file.name, key });
+    }
+    renderQueue();
+  }
+
+  function addUrl(url) {
+    url = (url || "").trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) { setStatus("URLs must start with http:// or https://", "err"); return; }
+    if (queue.some((e) => e.kind === "url" && e.url === url)) { setStatus("That URL is already queued.", "err"); return; }
+    let label = url;
+    try { label = new URL(url).hostname + new URL(url).pathname; } catch (_) {}
+    queue.push({ kind: "url", url, label, key: "u:" + url });
+    urlInput.value = "";
+    renderQueue();
+  }
+
+  function renderQueue() {
+    fileList.innerHTML = "";
+    for (const [i, entry] of queue.entries()) {
+      const li = document.createElement("li");
+      const kind = document.createElement("span");
+      kind.className = "kind";
+      kind.textContent = entry.kind === "url" ? "url" : ext(entry.label) || "file";
+      const name = document.createElement("span");
+      name.className = "fname";
+      name.textContent = entry.label;
+      name.title = entry.label;
+      const size = document.createElement("span");
+      size.className = "fsize";
+      size.textContent = entry.kind === "file" ? fmtSize(entry.file.size) : "";
+      const rm = document.createElement("button");
+      rm.className = "rm";
+      rm.type = "button";
+      rm.innerHTML = "&times;";
+      rm.title = "Remove";
+      rm.setAttribute("aria-label", "Remove " + entry.label);
+      rm.onclick = () => { queue.splice(i, 1); renderQueue(); };
+      li.append(kind, name, size, rm);
+      fileList.appendChild(li);
+    }
+    convertBtn.disabled = busy || queue.length === 0;
+    convertBtn.textContent = "Convert to Markdown" + (queue.length ? ` (${queue.length})` : "");
+    clearBtn.hidden = queue.length === 0;
+  }
+
+  /* ------------------------------------------------------- convert */
+  async function convert() {
+    if (busy || !queue.length) return;
+    busy = true;
+    renderQueue();
+    convertBtn.innerHTML = '<span class="spin"></span>Converting…';
+    setStatus(`Converting ${queue.length} item${queue.length > 1 ? "s" : ""}…`);
+    results = []; active = 0;
+
+    try {
+      const form = new FormData();
+      for (const entry of queue) {
+        if (entry.kind === "file") form.append("files", entry.file, entry.file.name);
+        else form.append("urls", entry.url);
+      }
+      const res = await fetch("/api/convert", { method: "POST", body: form });
+      let data;
+      try { data = await res.json(); }
+      catch (_) { throw new Error(`Server error (HTTP ${res.status})`); }
+      if (!res.ok && !data.results) throw new Error(data.error || `Server error (HTTP ${res.status})`);
+
+      results = Array.isArray(data.results) ? data.results : [];
+      const ok = results.filter((r) => r.ok).length;
+      const bad = results.length - ok;
+      setStatus(
+        bad === 0 ? `Done — ${ok} document${ok > 1 ? "s" : ""} converted.`
+                  : `Finished with problems: ${ok} converted, ${bad} failed.`,
+        bad === 0 ? "ok" : "err"
+      );
+      renderResults();
+      if (ok) { view = "raw"; }
+    } catch (err) {
+      setStatus(err.message || String(err), "err");
+    } finally {
+      busy = false;
+      convertBtn.innerHTML = "";
+      renderQueue();
+    }
+  }
+
+  /* ------------------------------------------------------- results */
+  function renderResults() {
+    const has = results.length > 0;
+    emptyEl.hidden = has;
+    resultsEl.hidden = !has;
+    if (!has) return;
+
+    tabsEl.innerHTML = "";
+    results.forEach((r, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = (r.ok ? "" : "⚠ ") + (r.name || "result");
+      b.title = r.name || "";
+      b.className = (i === active ? "active " : "") + (r.ok ? "" : "failed");
+      b.onclick = () => { active = i; renderResults(); };
+      tabsEl.appendChild(b);
+    });
+    active = Math.min(active, results.length - 1);
+    const r = results[active];
+
+    document.querySelectorAll(".seg button").forEach((b) =>
+      b.classList.toggle("on", b.dataset.view === view));
+
+    warnBox.innerHTML = "";
+    errorBox.innerHTML = "";
+    if (!r.ok) {
+      const div = document.createElement("div");
+      div.className = "error-card";
+      div.innerHTML = "<strong>Conversion failed</strong>";
+      div.appendChild(document.createTextNode(r.error || "Unknown error"));
+      errorBox.appendChild(div);
+      metaEl.textContent = "";
+      rawView.hidden = true; previewView.hidden = true;
+      $("copyBtn").disabled = true; $("downloadBtn").disabled = true;
+      return;
+    }
+    if (r.empty) {
+      warnBox.innerHTML = '<div class="warn">Converted, but no extractable text was found (an image-only/scanned PDF needs OCR).</div>';
+    }
+
+    metaEl.textContent = `${(r.chars || 0).toLocaleString()} chars · ${r.ms || 0} ms`;
+    rawView.textContent = r.markdown || "";
+    previewView.innerHTML = renderMarkdown(r.markdown || "");
+    const showPreview = view === "preview";
+    rawView.hidden = showPreview;
+    previewView.hidden = !showPreview;
+    $("copyBtn").disabled = false;
+    $("downloadBtn").disabled = false;
+  }
+
+  /* ------------------------------------------------- download / copy */
+  function download() {
+    const r = results[active];
+    if (!r || !r.ok) return;
+    const blob = new Blob([r.markdown || ""], { type: "text/markdown;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = mdName(r.name || "output.txt");
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast("Saved " + a.download);
+  }
+
+  async function copy() {
+    const r = results[active];
+    if (!r || !r.ok) return;
+    try {
+      await navigator.clipboard.writeText(r.markdown || "");
+      toast("Markdown copied to clipboard");
+    } catch (_) {
+      const ta = document.createElement("textarea");
+      ta.value = r.markdown || "";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); toast("Markdown copied"); }
+      catch (_) { toast("Copy failed — select the text manually"); }
+      ta.remove();
+    }
+  }
+
+  /* ------------------------------------------- tiny markdown renderer
+     Escapes all HTML first, then rebuilds a safe subset of Markdown.
+     The raw view above remains the source of truth. */
+  const esc = (s) => s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function inline(text) {
+    let s = esc(text);
+    s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, src) =>
+      /^https?:\/\//i.test(src)
+        ? `<img src="${src}" alt="${alt}">`
+        : `<span class="imgph">🖼 ${alt || "image"}</span>`);
+    s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+    s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/(^|[^*\w])_([^_]+)_(?!\w)/g, "$1<em>$2</em>");
+    s = s.replace(/(^|[^*\w])\*([^*]+)\*(?!\w)/g, "$1<em>$2</em>");
+    return s;
+  }
+
+  function renderMarkdown(src) {
+    const lines = String(src).replace(/\r\n/g, "\n").split("\n");
+    const out = [];
+    let list = null, para = [];
+    let i = 0;
+
+    const flushList = () => {
+      if (!list) return;
+      out.push(`<${list.tag}>` + list.items.map((t) => `<li>${inline(t)}</li>`).join("") + `</${list.tag}>`);
+      list = null;
+    };
+    const flushPara = () => {
+      if (para.length) { out.push(`<p>${inline(para.join(" "))}</p>`); para = []; }
+    };
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // fenced code
+      if (/^\s*```/.test(line)) {
+        flushList(); flushPara();
+        const lang = line.replace(/^\s*```/, "").trim();
+        const body = [];
+        i++;
+        while (i < lines.length && !/^\s*```/.test(lines[i])) body.push(lines[i++]);
+        i++;
+        const cls = lang ? ` class="language-${esc(lang)}"` : "";
+        out.push(`<pre><code${cls}>${esc(body.join("\n"))}</code></pre>`);
+        continue;
+      }
+      // heading
+      const h = line.match(/^(#{1,6})\s+(.*)$/);
+      if (h) { flushList(); flushPara(); out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); i++; continue; }
+      // horizontal rule
+      if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(line)) { flushList(); flushPara(); out.push("<hr>"); i++; continue; }
+      // table
+      if (/\|/.test(line) && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(lines[i + 1]) && lines[i + 1].includes("-")) {
+        flushList(); flushPara();
+        const cells = (row) => row.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((c) => c.trim());
+        const head = cells(line);
+        i += 2;
+        const rows = [];
+        while (i < lines.length && lines[i].includes("|") && lines[i].trim()) rows.push(cells(lines[i++]));
+        out.push("<table><thead><tr>" + head.map((c) => `<th>${inline(c)}</th>`).join("") +
+          "</tr></thead><tbody>" +
+          rows.map((r) => "<tr>" + r.map((c) => `<td>${inline(c)}</td>`).join("") + "</tr>").join("") +
+          "</tbody></table>");
+        continue;
+      }
+      // blockquote
+      if (/^\s*>\s?/.test(line)) {
+        flushList(); flushPara();
+        const body = [];
+        while (i < lines.length && /^\s*>\s?/.test(lines[i])) body.push(lines[i++].replace(/^\s*>\s?/, ""));
+        out.push(`<blockquote><p>${inline(body.join(" "))}</p></blockquote>`);
+        continue;
+      }
+      // lists
+      const bullet = line.match(/^\s*[-*+]\s+(.*)$/);
+      const ordered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+      if (bullet || ordered) {
+        flushPara();
+        const tag = bullet ? "ul" : "ol";
+        if (!list || list.tag !== tag) { flushList(); list = { tag, items: [] }; }
+        list.items.push((bullet || ordered)[1]);
+        i++;
+        continue;
+      }
+      if (!line.trim()) { flushList(); flushPara(); i++; continue; }
+      para.push(line.trim());
+      i++;
+    }
+    flushList(); flushPara();
+    return out.join("\n");
+  }
+
+  /* ---------------------------------------------------------- wiring */
+  dropzone.addEventListener("click", () => fileInput.click());
+  dropzone.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener("change", () => { addFiles(fileInput.files); fileInput.value = ""; });
+
+  ["dragenter", "dragover"].forEach((ev) =>
+    dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.add("drag"); }));
+  ["dragleave", "dragend"].forEach((ev) =>
+    dropzone.addEventListener(ev, () => dropzone.classList.remove("drag")));
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("drag");
+    addFiles(e.dataTransfer && e.dataTransfer.files);
+  });
+  // Dropping anywhere on the page should work too.
+  ["dragover", "drop"].forEach((ev) =>
+    document.addEventListener(ev, (e) => e.preventDefault()));
+
+  urlForm.addEventListener("submit", (e) => { e.preventDefault(); addUrl(urlInput.value); });
+  convertBtn.addEventListener("click", convert);
+  clearBtn.addEventListener("click", () => {
+    queue = [];
+    results = []; active = 0;
+    renderQueue(); renderResults();
+    emptyEl.hidden = false; resultsEl.hidden = true;
+    setStatus("");
+  });
+  document.querySelectorAll(".seg button").forEach((b) =>
+    b.addEventListener("click", () => { view = b.dataset.view; renderResults(); }));
+  $("copyBtn").addEventListener("click", copy);
+  $("downloadBtn").addEventListener("click", download);
+
+  renderQueue();
+})();
+</script>
+</body>
+</html>
