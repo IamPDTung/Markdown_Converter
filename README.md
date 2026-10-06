@@ -10,17 +10,29 @@ It never parses document formats itself.
 
 ## Install
 
+The distribution name is `mdconv-cli` (`mdconv` was taken on PyPI). Debian and
+Ubuntu make the system `pip` refuse installs (PEP 668), so use pipx or a venv:
+
 ```bash
-pip install mdconv-cli
+pipx install mdconv-cli          # recommended — isolated, puts the commands on PATH
 ```
 
-This gives you two commands: `mdconv` (CLI) and `mdconv-web` (web page).
+or from a checkout:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
+```
+
+Either way you get two commands: `mdconv` (CLI) and `mdconv-web` (web page).
 
 ## Quickstart
 
 ```bash
 mdconv-web                 # → http://127.0.0.1:8000
 ```
+
+From a checkout without activating the venv, use `.venv/bin/mdconv-web`.
 
 Open <http://127.0.0.1:8000>, drop one or more files (or paste a URL), press
 **Convert to Markdown**, then copy or download the result. Files are converted
