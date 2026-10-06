@@ -102,6 +102,9 @@ tests/                  # engine, API and CLI tests
 into a temp file (markitdown picks a converter from the extension), serialises
 conversions, and maps markitdown's exceptions to actionable messages.
 
+See **[GUIDE.md](GUIDE.md)** for how the pieces fit together, plus the dev and
+release workflows.
+
 ## Tests
 
 ```bash
