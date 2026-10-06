@@ -28,3 +28,4 @@ Build a tool whose primary function is converting files to Markdown.
   - CLI: `markitdown file.pdf -o out.md`. Python API: `MarkItDown().convert(path).markdown`.
   - Our project is a thin CLI wrapper around it (batch mode, output-dir handling, polish) — keep our own logic out of format parsing.
 - Known markitdown caveats: PDF/OCR fidelity is its weak point (README says output is for LLM/text-analysis, not high-fidelity human display). Do not "fix" this by adding competing libraries (pymupdf4llm, mammoth, ocrmypdf, etc.) — discuss with the user first.
+- Distribution: licensed MIT, published to PyPI as **`mdconv-cli`** (`mdconv` is taken by an unrelated package). The import package and CLI commands stay `mdconv` / `mdconv-web`.

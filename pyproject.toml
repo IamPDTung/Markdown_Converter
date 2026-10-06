@@ -1,13 +1,15 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mdconv"
+name = "mdconv-cli"
 version = "0.1.0"
 description = "Convert documents (PDF, HTML, DOCX, ...) to Markdown — a thin wrapper around microsoft/markitdown."
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Tommy", email = "phungdinh.tung.ptit@gmail.com" }]
 dependencies = [
     "markitdown[all]>=0.1.8",
     "flask>=3.0",
@@ -19,6 +21,9 @@ dev = ["pytest>=8"]
 [project.scripts]
 mdconv = "mdconv.cli:main"
 mdconv-web = "mdconv.server:main"
+
+[project.urls]
+Repository = "https://github.com/IamPDTung/Markdown_Converter"
 
 [tool.setuptools]
 packages = ["mdconv"]

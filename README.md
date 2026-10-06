@@ -8,13 +8,18 @@ The conversion engine is
 this project is a thin wrapper around it (uploads, batch mode, output handling, UI).
 It never parses document formats itself.
 
+## Install
+
+```bash
+pip install mdconv-cli
+```
+
+This gives you two commands: `mdconv` (CLI) and `mdconv-web` (web page).
+
 ## Quickstart
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -e '.[dev]'
-
-.venv/bin/mdconv-web                 # → http://127.0.0.1:8000
+mdconv-web                 # → http://127.0.0.1:8000
 ```
 
 Open <http://127.0.0.1:8000>, drop one or more files (or paste a URL), press
@@ -100,8 +105,14 @@ conversions, and maps markitdown's exceptions to actionable messages.
 ## Tests
 
 ```bash
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
 .venv/bin/python -m pytest     # 32 tests
 ```
 
 Sample documents (HTML, DOCX, PDF, PPTX, XLSX, …) are generated at runtime by
 `tests/fixtures.py`, so no binary files live in the repository.
+
+## License
+
+[MIT](LICENSE)
